@@ -35,8 +35,19 @@ Le bouton **Exporter effet pour Monteur** crée un manifeste JSON versionné. **
 - Tests Chromium : `npm run test:browser` — chargement de graphes, PNG et essai d'export WebM à partir d'une vidéo générée par FFmpeg, vérification de la piste vidéo avec FFprobe.
 - GitHub Actions : `.github/workflows/node-validation.yml`. L'exécution **réussie** de ce workflow et une QA tactile sur les appareils ciblés restent à confirmer.
 
-**Limites techniques :** une seule vidéo active par session, plusieurs sources image fixes ; aucun audio dans le WebM, pas de rendu hors temps réel, pas de courbes de Bézier paramétrables, pas de masques vectoriels dessinés à la main ou de rotoscopie, pas de tracking, ni de compositing 4K. Les traitements opèrent à **640 × 360**. Le contrôle de l'export WebM et des codecs dépend du navigateur. Sur certains navigateurs, le traitement WebGL2 peut nécessiter des adaptations supplémentaires.
+**Limites techniques :** plusieurs vidéos locales indépendantes désormais possibles, mais leur synchronisation dépend du décodage et du seek du navigateur ; aucun audio dans le WebM, pas de rendu hors temps réel, pas de courbes de Bézier paramétrables, pas de masques vectoriels dessinés à la main ou de rotoscopie, pas de tracking, ni de compositing 4K. Les traitements opèrent à **640 × 360**. Le contrôle de l'export WebM et des codecs dépend du navigateur. Sur certains navigateurs, le traitement WebGL2 peut nécessiter des adaptations supplémentaires.
 
 ## Prochaines étapes
 
-Pistes audio, import direct dans WarLike Studio, formats de graphes partagés, vidéos multi-sources avec synchronisation, courbes de Bézier avancées et rendu GPU composité de bout en bout.
+Pistes audio, import direct dans WarLike Studio, pipeline de synchronisation vidéo plus performant, courbes de Bézier avancées, proxies, cache de rendu et GPU composité de bout en bout.
+
+## Mise à jour : sources vidéo indépendantes et export plus fiable
+
+- Chaque **nœud Source vidéo** conserve désormais son propre fichier, son élément de lecture HTML5 et son URL locale ; deux vidéos différentes peuvent être mélangées dans une même composition.
+- La timeline repositionne toutes les vidéos chargées au temps du montage. Pendant l'export, le moteur attend leurs événements de recherche temporelle, avec un délai de sécurité, avant le calcul de l'image.
+- Les connexions du graphe initial utilisent des ports v2 nommés : Source → Contraste → Sortie fonctionne sans migration préalable.
+- Le shader WebGL2 réutilise un pipeline par résolution au lieu de recréer un contexte à chaque image. Son résultat est copié dans un canvas indépendant pour éviter l'écrasement entre branches.
+- L'export n'accepte plus les sources vidéo requises mais non importées. Le WebM est rouvert dans le navigateur pour vérifier qu'une piste vidéo décodable et des dimensions non nulles existent avant le téléchargement. Il reste **vidéo seule** et **expérimental**.
+- Un test Playwright génère deux vidéos de couleurs différentes avec FFmpeg et vérifie que le résultat composite contient les deux couleurs. Des tests d'export via FFprobe sont également définis dans la CI.
+
+La vérification syntaxique a été effectuée ; l'exécution complète du workflow GitHub Actions et les tests sur téléphone ne sont **pas encore confirmés**.
