@@ -25,7 +25,7 @@ Serveur statique : `python3 -m http.server 8080` puis ouvrir `http://localhost:8
 
 ## Échange avec WarLike Monteur
 
-Le bouton **Effet pour Monteur / Studio** crée un manifeste JSON versionné. **WarLike Monteur dispose maintenant d'un import dans l'inspecteur de clip** pour les graphes linéaires de correction couleur seulement (brightness, contrast, saturation, grayscale). Les compositions multicouches, masques, vidéo, GPU et keyframes ne sont **pas** interprétés par cet adaptateur : il les refuse explicitement. Aucun transfert direct des vidéos entre les applications n'est réalisé.
+Le bouton **Exporter effet pour Monteur** crée un manifeste JSON versionné. **WarLike Monteur dispose maintenant d'un import dans l'inspecteur de clip** pour les graphes linéaires de correction couleur seulement (brightness, contrast, saturation, grayscale). Les compositions multicouches, masques, vidéo, GPU et keyframes ne sont **pas** interprétés par cet adaptateur : il les refuse explicitement. Aucun transfert direct des vidéos entre les applications n'est réalisé.
 
 **WarLike Studio :** format d'échange documenté, mais **aucun moteur audio à nœuds ni importeur de graphes Node opérationnel dans Studio** n'a encore été mis en place. Une intégration audio native nécessitera des types de nœuds audio distincts et un adaptateur d'effets compatible avec Studio ; ne pas confondre le manifeste avec une connexion fonctionnelle.
 
