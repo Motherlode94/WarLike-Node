@@ -54,3 +54,42 @@ test('video source produces a decodable WebM export',async({page})=>{
   expect(details.streams.some(s=>s.codec_type==='video'&&s.width>0&&s.height>0)).toBeTruthy();
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('two independent video sources blend actual red and blue frames',async({page})=>{
+ const {spawnSync}=await import('node:child_process');
+ const {mkdtempSync,rmSync}=await import('node:fs');
+ const {tmpdir}=await import('node:os');
+ const {join}=await import('node:path');
+ const dir=mkdtempSync(join(tmpdir(),'wl-node-layers-'));
+ try{
+  const red=join(dir,'red.webm'),blue=join(dir,'blue.webm');
+  for(const [color,output] of [['red',red],['blue',blue]]){
+   const result=spawnSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','color=c='+color+':s=320x180:r=25:d=1.5','-an','-c:v','libvpx-vp9',output],{encoding:'utf8',timeout:30000});
+   expect(result.status,result.stderr).toBe(0);
+  }
+  const layered={
+   schema:'warlike-node-v2',fps:25,length:1.5,
+   nodes:[
+    {id:'v1',type:'video',x:50,y:100,params:{}},
+    {id:'v2',type:'video',x:50,y:330,params:{}},
+    {id:'blend',type:'merge',x:350,y:150,params:{opacity:50,mode:'source-over'}},
+    {id:'out',type:'output',x:650,y:150,params:{}}
+   ],
+   edges:[{from:'v1',to:'blend',input:'background'},{from:'v2',to:'blend',input:'foreground'},{from:'blend',to:'out',input:'image'}]
+  };
+  await page.goto('/');
+  await page.locator('#loadGraph').setInputFiles({name:'layers.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(layered))});
+  await page.locator('.node[data-id="v1"]').click();
+  await page.locator('#properties input[type="file"]').setInputFiles(red);
+  await expect(page.locator('#status')).toContainText('Vidéo chargée');
+  await page.locator('.node[data-id="v2"]').click();
+  await page.locator('#properties input[type="file"]').setInputFiles(blue);
+  await expect(page.locator('#status')).toContainText('2 source(s) vidéo');
+  await page.locator('#timelineTime').evaluate(el=>{el.value='0.4';el.dispatchEvent(new Event('input',{bubbles:true}));});
+  await expect(page.locator('#timeReadout')).toContainText('0.40');
+  await expect.poll(async()=>page.locator('#preview').evaluate(canvas=>{
+   const d=canvas.getContext('2d').getImageData(320,180,1,1).data;
+   return d[0]>35&&d[2]>35&&d[1]<30;
+  })).toBe(true);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
