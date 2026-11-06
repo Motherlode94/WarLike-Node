@@ -15,7 +15,7 @@ test('multi-layer graph imports, animates and exports a real PNG',async({page})=
  await expect(page.locator('#renderInfo')).toContainText('rendu local');
  await page.locator('#loadGraph').setInputFiles({name:'graph.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(graph))});
  await expect(page.locator('#graphInfo')).toContainText('4 nœuds · 3 connexions');
- await page.locator('#timelineTime').fill('1');await page.locator('#timelineTime').dispatchEvent('input');
+ await page.locator('#timelineTime').evaluate(el=>{el.value='1';el.dispatchEvent(new Event('input',{bubbles:true}));});
  await expect(page.locator('#timeReadout')).toContainText('1.00');
  const promise=page.waitForEvent('download');await page.locator('#exportPNG').click();const download=await promise;
  expect(download.suggestedFilename()).toMatch(/\.png$/);
