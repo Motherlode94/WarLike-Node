@@ -30,7 +30,7 @@ export function migrate(data){
    for(const key of Object.keys(obj.params)){
     const seq=n.keyframes[key];
     if(!Array.isArray(seq)||typeof obj.params[key]!=='number')continue;
-    obj.keyframes[key]=seq.slice(0,100).filter(k=>k&&Number.isFinite(k.t)&&Number.isFinite(k.value)&&k.t>=0&&k.t<=3600).map(k=>({t:k.t,value:clamp(k.value,-500,500)})).sort((a,b)=>a.t-b.t);
+    obj.keyframes[key]=seq.slice(0,100).filter(k=>k&&Number.isFinite(k.t)&&Number.isFinite(k.value)&&k.t>=0&&k.t<=3600).map(k=>({t:k.t,value:clamp(k.value,-500,500),easing:['linear','smooth','hold'].includes(k.easing)?k.easing:'linear'})).sort((a,b)=>a.t-b.t);
    }
   }
   return obj;
@@ -48,7 +48,7 @@ export function interpolate(node,key,time){
  const seq=node.keyframes?.[key];
  if(!Array.isArray(seq)||!seq.length)return node.params[key];
  if(time<=seq[0].t)return seq[0].value;
- for(let i=1;i<seq.length;i++){const left=seq[i-1],right=seq[i];if(time<=right.t){const t=(time-left.t)/Math.max(0.0001,right.t-left.t);return left.value+(right.value-left.value)*t;}}
+ for(let i=1;i<seq.length;i++){const left=seq[i-1],right=seq[i];if(time<=right.t){let t=(time-left.t)/Math.max(0.0001,right.t-left.t);if(left.easing==='hold')t=0;else if(left.easing==='smooth')t=t*t*(3-2*t);return left.value+(right.value-left.value)*t;}}
  return seq[seq.length-1].value;
 }
 export function incoming(edges,id,input){return edges.find(e=>e.to===id&&e.input===input)?.from||null;}
