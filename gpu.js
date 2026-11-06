@@ -47,5 +47,8 @@ export function gpuColor(source,red=1,green=1,blue=1){
  gl.uniform3f(p.gains,red,green,blue);
  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
  if(gl.getError()!==gl.NO_ERROR)throw Error('Erreur du rendu WebGL2.');
- return p.canvas;
+ // Snapshot output: sibling GPU branches must not overwrite each other's canvas.
+ const frame=document.createElement('canvas');frame.width=p.width;frame.height=p.height;
+ frame.getContext('2d').drawImage(p.canvas,0,0);
+ return frame;
 }
