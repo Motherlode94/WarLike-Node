@@ -121,6 +121,12 @@ for(const [type,def] of Object.entries(TYPES)){const b=document.createElement('b
 $('render').onclick=render;
 $('exportEffect').onclick=()=>{try{const data=JSON.stringify(effectEnvelope(graph()),null,2);downloadFile(new Blob([data],{type:'application/json'}),'warlike-node-effect.json');status('Effet exporté : contrat lisible par d’autres applications WarLike, sans médias.');}catch(e){status(e.message);}};
 function downloadFile(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+function connectedVideoNodes(){
+ const output=nodes.find(n=>n.type==='output');if(!output)return[];
+ const visited=new Set(),sources=[];
+ function visit(id){if(visited.has(id))return;visited.add(id);const n=nodeBy(id);if(n?.type==='video')sources.push(n);for(const e of edges)if(e.to===id)visit(e.from);}
+ visit(output.id);return sources;
+}
 async function validateExportedVideo(blob){
  if(blob.size<1024)throw Error('Export WebM vide ou trop petit.');
  const url=URL.createObjectURL(blob),probe=document.createElement('video');
@@ -137,12 +143,12 @@ async function validateExportedVideo(blob){
  }finally{probe.pause();probe.removeAttribute('src');probe.load();URL.revokeObjectURL(url);}
 }
 $('exportWebM').onclick=async()=>{
- if(recording)return;if(!videos.size)return status('Importe d’abord une vidéo dans un nœud Source vidéo.');
+ if(recording)return;const required=connectedVideoNodes();if(!required.length)return status('Connecte au moins un nœud Source vidéo à la sortie.');if(required.some(n=>!videos.has(n.id)))return status('Importe les fichiers de toutes les sources vidéo connectées avant l’export.');if(document.hidden)return status('Garde l’onglet visible pendant l’export en temps réel.');
  if(!window.MediaRecorder||!$('preview').captureStream)return status('WebM/MediaRecorder indisponible.');
  const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m));if(!mime)return status('Encodeur WebM non disponible.');
  recording=true;playing=false;$('playTimeline').textContent='▶ Lecture';$('exportWebM').disabled=true;$('playTimeline').disabled=true;$('timelineTime').disabled=true;$('loadGraph').disabled=true;let recorder,stream;
  try{time=0;await seekVideo(0);render();stream=$('preview').captureStream(graphFPS);const chunks=[];recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:2500000});const done=new Promise((resolve,reject)=>{recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};recorder.onerror=e=>reject(e.error||Error('Encodeur en erreur'));recorder.onstop=()=>resolve(new Blob(chunks,{type:mime}));});recorder.start(500);
- const began=performance.now();while(time<graphLength){const elapsed=(performance.now()-began)/1000;time=Math.min(graphLength,elapsed);await seekVideo(time);render();syncTimelineUI();await new Promise(resolve=>setTimeout(resolve,Math.max(8,1000/graphFPS)));}recorder.stop();const blob=await done;status('Vérification du WebM exporté…');await validateExportedVideo(blob);downloadFile(blob,'warlike-node-composite.webm');status('Export WebM vidéo seule terminé ('+(blob.size/1048576).toFixed(1)+' Mo). Vérifie le fichier sur ton appareil.');
+ const began=performance.now();while(time<graphLength){if(document.hidden)throw Error('Onglet masqué : export en temps réel interrompu.');const elapsed=(performance.now()-began)/1000;time=Math.min(graphLength,elapsed);await seekVideo(time);render();syncTimelineUI();await new Promise(resolve=>setTimeout(resolve,Math.max(8,1000/graphFPS)));}recorder.stop();const blob=await done;status('Vérification du WebM exporté…');await validateExportedVideo(blob);downloadFile(blob,'warlike-node-composite.webm');status('Export WebM vidéo seule terminé ('+(blob.size/1048576).toFixed(1)+' Mo). Vérifie le fichier sur ton appareil.');
  }catch(err){status('Export interrompu : '+err.message);if(recorder?.state==='recording')recorder.stop();}
  finally{for(const track of stream?.getTracks()||[])track.stop();recording=false;$('exportWebM').disabled=false;$('playTimeline').disabled=false;$('timelineTime').disabled=false;$('loadGraph').disabled=false;}
 };
