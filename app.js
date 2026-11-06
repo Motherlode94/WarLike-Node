@@ -121,15 +121,30 @@ for(const [type,def] of Object.entries(TYPES)){const b=document.createElement('b
 $('render').onclick=render;
 $('exportEffect').onclick=()=>{try{const data=JSON.stringify(effectEnvelope(graph()),null,2);downloadFile(new Blob([data],{type:'application/json'}),'warlike-node-effect.json');status('Effet exporté : contrat lisible par d’autres applications WarLike, sans médias.');}catch(e){status(e.message);}};
 function downloadFile(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+async function validateExportedVideo(blob){
+ if(blob.size<1024)throw Error('Export WebM vide ou trop petit.');
+ const url=URL.createObjectURL(blob),probe=document.createElement('video');
+ probe.muted=true;probe.preload='metadata';
+ try{
+  await new Promise((resolve,reject)=>{
+   const timeout=setTimeout(()=>finish(Error('Vérification WebM expirée.')),12000);
+   function finish(error){clearTimeout(timeout);probe.removeEventListener('loadedmetadata',ready);probe.removeEventListener('error',failed);error?reject(error):resolve();}
+   const ready=()=>finish(),failed=()=>finish(Error('Fichier WebM illisible.'));
+   probe.addEventListener('loadedmetadata',ready);probe.addEventListener('error',failed);probe.src=url;probe.load();
+  });
+  if(!probe.videoWidth||!probe.videoHeight)throw Error('Piste vidéo WebM absente.');
+  return{width:probe.videoWidth,height:probe.videoHeight};
+ }finally{probe.pause();probe.removeAttribute('src');probe.load();URL.revokeObjectURL(url);}
+}
 $('exportWebM').onclick=async()=>{
  if(recording)return;if(!videos.size)return status('Importe d’abord une vidéo dans un nœud Source vidéo.');
  if(!window.MediaRecorder||!$('preview').captureStream)return status('WebM/MediaRecorder indisponible.');
  const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m));if(!mime)return status('Encodeur WebM non disponible.');
- recording=true;playing=false;$('playTimeline').textContent='▶ Lecture';$('exportWebM').disabled=true;let recorder,stream;
+ recording=true;playing=false;$('playTimeline').textContent='▶ Lecture';$('exportWebM').disabled=true;$('playTimeline').disabled=true;$('timelineTime').disabled=true;$('loadGraph').disabled=true;let recorder,stream;
  try{time=0;await seekVideo(0);render();stream=$('preview').captureStream(graphFPS);const chunks=[];recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:2500000});const done=new Promise((resolve,reject)=>{recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};recorder.onerror=e=>reject(e.error||Error('Encodeur en erreur'));recorder.onstop=()=>resolve(new Blob(chunks,{type:mime}));});recorder.start(500);
- const began=performance.now();while(time<graphLength){const elapsed=(performance.now()-began)/1000;time=Math.min(graphLength,elapsed);await seekVideo(time);render();syncTimelineUI();await new Promise(resolve=>setTimeout(resolve,Math.max(8,1000/graphFPS)));}recorder.stop();const blob=await done;if(blob.size<1024)throw Error('Fichier WebM vide.');downloadFile(blob,'warlike-node-composite.webm');status('Export WebM vidéo seule terminé ('+(blob.size/1048576).toFixed(1)+' Mo). Vérifie le fichier sur ton appareil.');
+ const began=performance.now();while(time<graphLength){const elapsed=(performance.now()-began)/1000;time=Math.min(graphLength,elapsed);await seekVideo(time);render();syncTimelineUI();await new Promise(resolve=>setTimeout(resolve,Math.max(8,1000/graphFPS)));}recorder.stop();const blob=await done;status('Vérification du WebM exporté…');await validateExportedVideo(blob);downloadFile(blob,'warlike-node-composite.webm');status('Export WebM vidéo seule terminé ('+(blob.size/1048576).toFixed(1)+' Mo). Vérifie le fichier sur ton appareil.');
  }catch(err){status('Export interrompu : '+err.message);if(recorder?.state==='recording')recorder.stop();}
- finally{for(const track of stream?.getTracks()||[])track.stop();recording=false;$('exportWebM').disabled=false;}
+ finally{for(const track of stream?.getTracks()||[])track.stop();recording=false;$('exportWebM').disabled=false;$('playTimeline').disabled=false;$('timelineTime').disabled=false;$('loadGraph').disabled=false;}
 };
 $('exportPNG').onclick=()=>{if(!render())return;$('preview').toBlob(blob=>{if(!blob)return status('Export PNG indisponible.');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='warlike-node-'+new Date().toISOString().slice(0,10)+'.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);},'image/png');};
 $('saveGraph').onclick=()=>{const data=JSON.stringify(graph(),null,2);const url=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='warlike-node-graph.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);status('Graphe exporté. Les images locales ne sont pas incluses.');};
