@@ -18,3 +18,12 @@ test('linear keyframe values interpolate deterministically',()=>{
 test('effect contract contains only graph data, no local media',()=>{
  const effect=effectEnvelope(graph());assert.equal(effect.format,'warlike-node-effect');assert.equal(effect.requiresLocalMedia,true);assert.equal(JSON.stringify(effect).includes('blob:'),false);
 });
+
+test('smooth interpolation curves and hold keyframes',()=>{
+ const node=initial('brightness','fx');
+ node.keyframes={amount:[{t:0,value:100,easing:'smooth'},{t:10,value:200}]};
+ assert.ok(interpolate(node,'amount',2)<120);
+ assert.equal(interpolate(node,'amount',5),150);
+ node.keyframes.amount[0].easing='hold';
+ assert.equal(interpolate(node,'amount',8),100);
+});
