@@ -120,6 +120,29 @@ function commit(message){write();renderGraph();renderProperties();scheduleRender
 for(const [type,def] of Object.entries(TYPES)){const b=document.createElement('button');b.type='button';const name=document.createElement('span');name.textContent='＋ '+def.name;const category=document.createElement('small');category.textContent=def.group;b.append(name,category);b.onclick=()=>{if(nodes.length>=40)return status('Limite de 40 nœuds.');const offset=nodes.length*27;const n=newNode(type,120+offset%1050,110+offset%580);nodes.push(n);selected=n.id;commit('Nœud '+def.name+' ajouté.');};$('palette').append(b);}
 $('render').onclick=render;
 $('exportEffect').onclick=()=>{try{const data=JSON.stringify(effectEnvelope(graph()),null,2);downloadFile(new Blob([data],{type:'application/json'}),'warlike-node-effect.json');status('Effet exporté : contrat lisible par d’autres applications WarLike, sans médias.');}catch(e){status(e.message);}};
+const MONTEUR_ORIGIN='https://warlike-monteur.pages.dev';
+$('sendToMonteur').onclick=()=>{
+ let payload;
+ try{payload=effectEnvelope(graph());}catch(e){status('Transfert impossible : '+e.message);return;}
+ const channel=Array.from(crypto.getRandomValues(new Uint8Array(20)),b=>b.toString(16).padStart(2,'0')).join('');
+ const receiver=window.open(MONTEUR_ORIGIN+'/?nodeTransfer='+channel,'_blank');
+ if(!receiver){status('Fenêtre Monteur bloquée. Autorise les fenêtres ou utilise Exporter effet.');return;}
+ let finished=false;
+ const cleanup=()=>{finished=true;window.removeEventListener('message',onMessage);};
+ const onMessage=event=>{
+  if(finished||event.origin!==MONTEUR_ORIGIN||event.source!==receiver||event.data?.channel!==channel)return;
+  if(event.data.type==='warlike-monteur-ready-v1'){
+   receiver.postMessage({type:'warlike-node-transfer-v1',channel,effect:payload},MONTEUR_ORIGIN);
+   status('Graphe transmis à Monteur, en attente de confirmation…');
+  }else if(event.data.type==='warlike-monteur-imported-v1'){
+   status(event.data.ok?'Graphe reçu par Monteur. '+(event.data.detail||''):('Monteur : '+(event.data.error||'transfert refusé')));
+   cleanup();
+  }
+ };
+ window.addEventListener('message',onMessage);
+ // The receiving page also sends a ready message on load, avoiding races.
+ receiver.postMessage({type:'warlike-node-ping-v1',channel},MONTEUR_ORIGIN);
+};
 function downloadFile(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 function connectedVideoNodes(){
  const output=nodes.find(n=>n.type==='output');if(!output)return[];
