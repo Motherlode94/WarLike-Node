@@ -127,11 +127,12 @@ $('sendToMonteur').onclick=()=>{
  const channel=Array.from(crypto.getRandomValues(new Uint8Array(20)),b=>b.toString(16).padStart(2,'0')).join('');
  const receiver=window.open(MONTEUR_ORIGIN+'/?nodeTransfer='+channel,'_blank');
  if(!receiver){status('Fenêtre Monteur bloquée. Autorise les fenêtres ou utilise Exporter effet.');return;}
- let finished=false;
+ let finished=false,sent=false;
  const cleanup=()=>{finished=true;window.removeEventListener('message',onMessage);};
  const onMessage=event=>{
   if(finished||event.origin!==MONTEUR_ORIGIN||event.source!==receiver||event.data?.channel!==channel)return;
   if(event.data.type==='warlike-monteur-ready-v1'){
+   if(sent)return;sent=true;
    receiver.postMessage({type:'warlike-node-transfer-v1',channel,effect:payload},MONTEUR_ORIGIN);
    status('Graphe transmis à Monteur, en attente de confirmation…');
   }else if(event.data.type==='warlike-monteur-imported-v1'){
