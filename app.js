@@ -1,3 +1,4 @@
+import {installedNodePresets as readInstalledNodePresets} from './node-extension-packs.js';
 import {DEFINITIONS,initial,migrate,interpolate,incoming,effectEnvelope,clamp} from './graph-core.js';
 import {gpuColor} from './gpu.js';
 const $=id=>document.getElementById(id);
@@ -179,7 +180,7 @@ $('exportWebM').onclick=async()=>{
 $('exportPNG').onclick=()=>{if(!render())return;$('preview').toBlob(blob=>{if(!blob)return status('Export PNG indisponible.');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='warlike-node-'+new Date().toISOString().slice(0,10)+'.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);},'image/png');};
 $('saveGraph').onclick=()=>{const data=JSON.stringify(graph(),null,2);const url=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='warlike-node-graph.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);status('Graphe exporté. Les images locales ne sont pas incluses.');};
 function validateGraph(data){return migrate(data);}
-function installedNodePresets(){try{const installed=JSON.parse(localStorage.getItem('warlike.extensions.v1')||'{}');const kit=installed['node-compositing-kit'];return kit?.enabled&&kit.schema==='warlike.node.presets.v1'&&Array.isArray(kit.data?.presets)?kit.data.presets.filter(p=>p&&typeof p.id==='string'&&p.graph):[]}catch{return []}}
+function installedNodePresets(){return readInstalledNodePresets(localStorage)}
 function refreshNodePresets(){const select=$('extensionPreset'),current=select.value;select.replaceChildren(new Option('Presets installés…',''));for(const preset of installedNodePresets()){select.append(new Option(preset.name||preset.id,preset.id))}if([...select.options].some(o=>o.value===current))select.value=current}
 $('applyExtensionPreset').onclick=()=>{const preset=installedNodePresets().find(p=>p.id===$('extensionPreset').value);if(!preset)return status('Installe et active un preset depuis Extensions.');try{const validated=validateGraph(preset.graph);if(!confirm('Remplacer le graphe en cours par '+(preset.name||preset.id)+' ?'))return;applyGraph(validated);selected=nodes[0]?.id||null;armed=null;commit('✓ Preset installé appliqué : '+(preset.name||preset.id)+'. Réimporte les sources médias.')}catch(error){status('Preset incompatible : '+error.message)}};
 window.addEventListener('storage',e=>{if(e.key==='warlike.extensions.v1')refreshNodePresets()});refreshNodePresets();
