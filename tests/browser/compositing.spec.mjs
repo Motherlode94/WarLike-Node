@@ -93,3 +93,12 @@ test('two independent video sources blend actual red and blue frames',async({pag
   })).toBe(true);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('installed cinema preset loads and renders its connected nodes',async({page})=>{
+ const failures=[];page.on('pageerror',error=>failures.push(error.message));
+ const preset={id:'cinema',name:'Cinéma test',graph:{schema:'warlike-node-v2',fps:25,length:10,nodes:[{id:'s',type:'source',x:70,y:160,params:{}},{id:'c',type:'contrast',x:360,y:160,params:{amount:120}},{id:'o',type:'output',x:650,y:160,params:{}}],edges:[{from:'s',to:'c',input:'image'},{from:'c',to:'o',input:'image'}]}};
+ await page.addInitScript(({preset})=>localStorage.setItem('warlike.extensions.v1',JSON.stringify({'node-cinema-pack':{enabled:true,schema:'warlike.node.presets.v1',data:{presets:[preset]}}})),{preset});
+ await page.goto('/');await expect(page.locator('#graphInfo')).toContainText('3 nœuds');
+ await page.locator('#extensionPreset').selectOption('node-cinema-pack:cinema');page.once('dialog',dialog=>dialog.accept());await page.locator('#applyExtensionPreset').click();
+ await expect(page.locator('#graphInfo')).toContainText('3 nœuds · 2 connexions');await expect(page.locator('#renderInfo')).toContainText('rendu local');await expect(page.locator('.node')).toHaveCount(3);expect(failures).toEqual([]);
+});
